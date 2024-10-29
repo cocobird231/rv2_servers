@@ -1,0 +1,11 @@
+launch:
+    params: "params.yaml"
+    launch: "launch_all.py"
+    use_root: false
+
+network:
+    interface: "eno1"
+    internet_required: false
+
+# custom:
+#     key: "value"

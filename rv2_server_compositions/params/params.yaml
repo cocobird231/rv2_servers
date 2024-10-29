@@ -1,0 +1,28 @@
+/**:
+    ros__parameters:
+        # Generic parameters
+        use_sim_time: false
+        namespace: ""
+        nodeName: ""                    # rv2_sensors only
+        id: ""                          # rv2_sensors only
+        devManageService: "devmanage_0" # Service name
+        devInterface: ""                # rv2_sensors only
+        qosService: "qos_0"             # Service name
+        qosDirPath: ""                  # rv2_sensors only
+        safetyService: ""               # Service name
+        timesyncService: ""             # Service name
+        timesyncPeriod_ms: 0.0          # rv2_sensors only
+        timesyncAccuracy_ms: 0.0        # rv2_sensors only
+        timesyncWaitService: false      # rv2_sensors only
+
+        # DevManageServer parameters
+        devManageServiceNodeName: "devmanageserver"
+        devManageServiceNodeID: "0"
+        devManageServerDirPath: "devmanageserver/nodes"
+        procedureScanPeriod_ms: 1000.0
+        nodeAddrStoreStrategy: 0
+
+        # QoSServer parameters
+        qosServiceNodeName: "qosserver"
+        qosServiceNodeID: "0"
+        qosServerDirPath: "qosserver"
