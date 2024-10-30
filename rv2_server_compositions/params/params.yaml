@@ -16,13 +16,13 @@
         timesyncWaitService: false      # rv2_sensors only
 
         # DevManageServer parameters
-        devManageServiceNodeName: "devmanageserver"
+        devManageServiceNodeName: "rv2_devmanageserver"
         devManageServiceNodeID: "0"
         devManageServerDirPath: "devmanageserver/nodes"
         procedureScanPeriod_ms: 1000.0
         nodeAddrStoreStrategy: 0
 
         # QoSServer parameters
-        qosServiceNodeName: "qosserver"
+        qosServiceNodeName: "rv2_qosserver"
         qosServiceNodeID: "0"
         qosServerDirPath: "qosserver"

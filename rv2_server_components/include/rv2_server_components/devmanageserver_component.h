@@ -3,7 +3,7 @@
 #include <rv2_interfaces/visibility_control.h>
 
 #define DEFAULT_DEVMANAGE_SRV_NAME "devmanage_default"
-#define DEFAULT_DEVMANAGE_SERVER_NODENAME "devmanageserver_default"
+#define DEFAULT_DEVMANAGE_SERVER_NODENAME "rv2_devmanageserver_default_node"
 #define DEFAULT_DEVMANAGE_SERVER_DIR_PATH "devmanageserver/nodes"
 
 namespace rv2_interfaces

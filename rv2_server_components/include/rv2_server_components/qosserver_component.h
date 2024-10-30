@@ -3,7 +3,7 @@
 #include <rv2_interfaces/visibility_control.h>
 
 #define DEFAULT_QOS_SRV_NAME "qos_default"
-#define DEFAULT_QOS_SERVER_NODENAME "qosserver_default"
+#define DEFAULT_QOS_SERVER_NODENAME "rv2_qosserver_default_node"
 #define DEFAULT_QOS_SERVER_DIR_PATH "qosserver"
 
 namespace rv2_interfaces

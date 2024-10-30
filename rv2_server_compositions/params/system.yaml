@@ -1,11 +1,10 @@
 launch:
     params: "params.yaml"
     launch: "launch_all.py"
+    startup_location: "${HOME}" # Leave empty if not needed.
     use_root: false
+    gui_mode: false
 
 network:
     interface: "eno1"
     internet_required: false
-
-# custom:
-#     key: "value"
