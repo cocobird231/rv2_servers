@@ -26,10 +26,11 @@ namespace rv2_interfaces
  *          None.
  * 
  *      - Created Services:
- *          <service_name>                : The DevManageServer control service.
- *          <service_name>_nodeaddr_Reg   : The node address registration service.
- *          <service_name>_nodeaddr_Req   : The node address request service.
- *          <service_name>_devinfo_Req    : The device information request service.
+ *          <service_name>              : The DevManageServer control service.
+ *          <service_name>_ps_Reg       : The procedure status registration service.
+ *          <service_name>_nodeaddr_Reg : The node address registration service.
+ *          <service_name>_nodeaddr_Req : The node address request service.
+ *          <service_name>_devinfo_Req  : The device information request service.
  */
 class DevManageServer : public rclcpp::Node
 {
@@ -37,15 +38,14 @@ private:
     // Parameters
     std::string mDevManageSrvName_ = DEFAULT_DEVMANAGE_SRV_NAME;
     std::string mDevInfoDirPathName_ = DEFAULT_DEVMANAGE_SERVER_DIR_PATH;
-    double mProcedureScanPeriod_ms_ = 1000.0;
 
+    rclcpp::Service<srv::ProcStatusReg>::SharedPtr mPSRegSrv_;// Procedure status registration service.
     rclcpp::Service<srv::NodeAddrReg>::SharedPtr mNodeAddrRegSrv_;// Node address registration service.
     rclcpp::Service<srv::NodeAddrReq>::SharedPtr mNodeAddrReqSrv_;// Node address request service.
     rclcpp::Service<srv::DevInfoReq>::SharedPtr mDevInfoReqSrv_;// Device information request service.
     rclcpp::Service<srv::DevManageServer>::SharedPtr mDevManageSrv_;// Device management service.
 
-    std::shared_ptr<LiteTimer> mPSReqTm_;// Procedure status request timer.
-    std::chrono::nanoseconds mPSReqTmPeriod_ns_;// Procedure status request timer period.
+    std::chrono::nanoseconds mProcExpTimeout_ns_;// Procedure expiration timeout.
 
     struct devManageStruct_
     {
@@ -57,6 +57,8 @@ private:
     std::map<std::string, devManageStruct_> mDevManageMap_;// { nodeName, devManageStruct_ }
     std::mutex mDevManageMapMtx_;
 
+    rclcpp::CallbackGroup::SharedPtr mCbG_;
+
     fs::path mDevInfoDirPath_;
 
     enum NodeAddrStoreStrategy { CONFLICT_OVERWRITE, CONFLICT_IGNORE } mStoreStrategy_;
@@ -65,7 +67,12 @@ public:
     COMPOSITION_PUBLIC
     explicit DevManageServer(const rclcpp::NodeOptions & options);
 
+    ~DevManageServer();
+
 private:
+    void _PSRegSrvCb(const std::shared_ptr<srv::ProcStatusReg::Request> request, 
+                            std::shared_ptr<srv::ProcStatusReg::Response> response);
+
     void _nodeAddrRegSrvCb(const std::shared_ptr<srv::NodeAddrReg::Request> request, 
                             std::shared_ptr<srv::NodeAddrReg::Response> response);
 
@@ -77,8 +84,6 @@ private:
 
     void _devManageSrvCb(const std::shared_ptr<srv::DevManageServer::Request> request, 
                             std::shared_ptr<srv::DevManageServer::Response> response);
-
-    void _psReqTmCb();
 
     std::map<std::string, devManageStruct_> _getDevManageMap(std::string nodeName);
 

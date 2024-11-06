@@ -19,7 +19,7 @@
         devManageServiceNodeName: "rv2_devmanageserver"
         devManageServiceNodeID: "0"
         devManageServerDirPath: "devmanageserver/nodes"
-        procedureScanPeriod_ms: 1000.0
+        procExpTimeout_ms: 1000.0
         nodeAddrStoreStrategy: 0
 
         # QoSServer parameters

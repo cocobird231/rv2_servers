@@ -3,24 +3,36 @@
 namespace rv2_interfaces
 {
 
+/**
+ * ================================================================
+ * DevManageServer Constructor and Destructor
+ * ================================================================
+ */
+
+
+
 DevManageServer::DevManageServer(const rclcpp::NodeOptions & options) : 
     rclcpp::Node(DEFAULT_DEVMANAGE_SERVER_NODENAME, options), 
     mStoreStrategy_(NodeAddrStoreStrategy::CONFLICT_OVERWRITE)
 {
     // Get parameters
     int nodeAddrStoreStrategy = 0;
+    double procExpTimeout_ms = 1000.0;
     GetParamRawPtr(this, "devManageService", mDevManageSrvName_, mDevManageSrvName_, "devManageService: ", false);
     GetParamRawPtr(this, "devManageServerDirPath", mDevInfoDirPathName_, mDevInfoDirPathName_, "devManageServerDirPath: ", false);
-    GetParamRawPtr(this, "procedureScanPeriod_ms", mProcedureScanPeriod_ms_, mProcedureScanPeriod_ms_, "procedureScanPeriod_ms: ", false);
     GetParamRawPtr(this, "nodeAddrStoreStrategy", nodeAddrStoreStrategy, nodeAddrStoreStrategy, "nodeAddrStoreStrategy: ", false);
+    GetParamRawPtr(this, "procExpTimeout_ms", procExpTimeout_ms, procExpTimeout_ms, "procExpTimeout_ms: ", false);
     mDevInfoDirPath_ = mDevInfoDirPathName_;
-    mPSReqTmPeriod_ns_ = std::chrono::nanoseconds((int64_t)(mProcedureScanPeriod_ms_ * 1e6));
     mStoreStrategy_ = (NodeAddrStoreStrategy)nodeAddrStoreStrategy;
+    mProcExpTimeout_ns_ = std::chrono::milliseconds((int64_t)procExpTimeout_ms);
 
     fs::create_directories(mDevInfoDirPath_);
 
     this->_loadNodeAddrFile();
     this->printNodeAddrList();
+
+    mPSRegSrv_ = this->create_service<srv::ProcStatusReg>(DevManageServer_ProcStatusRegSrvName(mDevManageSrvName_), 
+        std::bind(&DevManageServer::_PSRegSrvCb, this, std::placeholders::_1, std::placeholders::_2));
 
     mNodeAddrRegSrv_ = this->create_service<srv::NodeAddrReg>(DevManageServer_NodeAddrRegSrvName(mDevManageSrvName_), 
         std::bind(&DevManageServer::_nodeAddrRegSrvCb, this, std::placeholders::_1, std::placeholders::_2));
@@ -34,10 +46,38 @@ DevManageServer::DevManageServer(const rclcpp::NodeOptions & options) :
     mDevManageSrv_ = this->create_service<srv::DevManageServer>(DevManageServer_DevManageServerSrvName(mDevManageSrvName_), 
         std::bind(&DevManageServer::_devManageSrvCb, this, std::placeholders::_1, std::placeholders::_2));
 
-    mPSReqTm_ = std::make_shared<LiteTimer>(mProcedureScanPeriod_ms_, std::bind(&DevManageServer::_psReqTmCb, this));
-    mPSReqTm_->start();
-
     RCLCPP_INFO(this->get_logger(), "[DevManageServer] Constructed.");
+}
+
+
+
+DevManageServer::~DevManageServer()
+{
+    RCLCPP_INFO(this->get_logger(), "[DevManageServer] Destructed.");
+}
+
+
+
+/**
+ * ================================================================
+ * DevManageServer Private Methods
+ * ================================================================
+ */
+
+
+
+void DevManageServer::_PSRegSrvCb(const std::shared_ptr<srv::ProcStatusReg::Request> request, 
+                                    std::shared_ptr<srv::ProcStatusReg::Response> response)
+{
+    std::lock_guard<std::mutex> devManageMapLock(mDevManageMapMtx_);
+    if (mDevManageMap_.find(request->node_name) != mDevManageMap_.end())
+    {
+        mDevManageMap_[request->node_name].ps = request->proc_status_vec;
+        mDevManageMap_[request->node_name].lastReqTime = std::chrono::system_clock::now();
+        response->response = ServiceResponseStatus::SRV_RES_SUCCESS;
+        return;
+    }
+    response->response = ServiceResponseStatus::SRV_RES_IGNORED;
 }
 
 
@@ -226,22 +266,12 @@ void DevManageServer::_devManageSrvCb(const std::shared_ptr<srv::DevManageServer
     // Device management service action
     if (request->request.server_action & msg::DevManageServerStatus::SERVER_ACTION_SET_TIMER)
     {
-        if (request->request.proc_status_req_timer_status == msg::DevManageServerStatus::TIMER_STATUS_START)
-        {
-            mPSReqTm_->start();
-        }
-        else if (request->request.proc_status_req_timer_status == msg::DevManageServerStatus::TIMER_STATUS_STOP)
-        {
-            mPSReqTm_->stop();
-        }
+        response->response = ServiceResponseStatus::SRV_RES_IGNORED;
     }
 
     if (request->request.server_action & msg::DevManageServerStatus::SERVER_ACTION_SET_PERIOD)
     {
-        if (request->request.proc_status_req_timer_period_ns > 0)
-        {
-            mPSReqTm_->setPeriod(request->request.proc_status_req_timer_period_ns / 1e6);
-        }
+        response->response = ServiceResponseStatus::SRV_RES_IGNORED;
     }
 
     if (request->request.server_action & msg::DevManageServerStatus::SERVER_ACTION_KILL_NODE)
@@ -267,32 +297,8 @@ void DevManageServer::_devManageSrvCb(const std::shared_ptr<srv::DevManageServer
         }
         else
         {
+            response->response = ServiceResponseStatus::SRV_RES_WARNING;
             response->reason += "[KILL_NODE] InteractiveService request failed.";
-        }
-    }
-}
-
-
-
-void DevManageServer::_psReqTmCb()
-{
-    auto tmp = SafeLoad(&mDevManageMap_, mDevManageMapMtx_);
-
-    std::map<std::string, std::future<std::shared_ptr<srv::ProcStatusReq::Response> > > fMap;
-    for (auto& [n, dm] : tmp)
-    {
-        auto request = std::make_shared<srv::ProcStatusReq::Request>();
-        fMap[n] = std::async(std::launch::async, ClientRequestHelperRawPtr<srv::ProcStatusReq>, this, DevManageNode_ProcStatusReqSrvName(n), request, 500ms);
-    }
-
-    for (auto& [n, f] : fMap)
-    {
-        auto res = f.get();
-        if (res)
-        {
-            std::lock_guard<std::mutex> devManageMapLock(mDevManageMapMtx_);
-            mDevManageMap_[n].ps = res->proc_status_vec;
-            mDevManageMap_[n].lastReqTime = std::chrono::system_clock::now();
         }
     }
 }
@@ -318,7 +324,7 @@ msg::DevInfo DevManageServer::_cvtDevManageStructToDevInfo(const DevManageServer
     ret.node_addr = dm.nodeAddr;
     for (const auto& ps : dm.ps)
         ret.proc_status_vec.push_back(ps);
-    ret.is_proc_status_expired = std::chrono::system_clock::now() - dm.lastReqTime > mPSReqTmPeriod_ns_ * 2;
+    ret.is_proc_status_expired = std::chrono::system_clock::now() - dm.lastReqTime > mProcExpTimeout_ns_;
     return ret;
 }
 
@@ -348,6 +354,14 @@ fs::path DevManageServer::_nodeNameToJSONFilePath(const std::string& nodeName, b
     fn += (conflict ? ".json.conflict" : ".json");
     return mDevInfoDirPath_ / fn;
 }
+
+
+
+/**
+ * ================================================================
+ * DevManageServer Public Methods
+ * ================================================================
+ */
 
 
 
@@ -396,20 +410,9 @@ void DevManageServer::printProcedureStatus(std::string nodeName)
 {
     auto dmMap = this->_getDevManageMap(nodeName);
     auto printTs = std::chrono::system_clock::now();
-    auto expDur = mPSReqTmPeriod_ns_ * 2;
     HierarchicalPrint hprint;
     for (const auto& [n, dm] : dmMap)
-    {
-        std::string isInfoExpired = (printTs - dm.lastReqTime) > expDur ? " (Expired)" : "";
-        hprint.push(0, "[%s%s]", n.c_str(), isInfoExpired.c_str());
-        for (const auto& ps : dm.ps)
-        {
-            hprint.push(1, "[%s]", ps.proc_name.c_str());
-            hprint.push(2, "[timeout] %ld ns", ps.timeout_ns);
-            hprint.push(2, "[status] %s", GetProcedureStatusStr((ProcedureStatus)ps.status).c_str());
-            hprint.push(2, "[message] %s", ps.message.c_str());
-        }
-    }
+        AddHierarchicalPrint(hprint, 0, this->_cvtDevManageStructToDevInfo(dm));
     printf("====Procedure Status List====\n");
     hprint.print();
     printf("=============================\n");
