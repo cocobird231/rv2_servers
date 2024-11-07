@@ -108,7 +108,6 @@ install(DIRECTORY
 install(FILES
   requirements_apt.txt
   requirements_pip.txt
-  source_env.txt
   DESTINATION share/${PROJECT_NAME}
 )
 
