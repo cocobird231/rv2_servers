@@ -229,6 +229,15 @@ void DevManageServer::_devInfoReqSrvCb(const std::shared_ptr<srv::DevInfoReq::Re
 void DevManageServer::_devManageSrvCb(const std::shared_ptr<srv::DevManageServer::Request> request, 
                         std::shared_ptr<srv::DevManageServer::Response> response)
 {
+    RCLCPP_INFO(this->get_logger(), "[DevManageServer::_devManageSrvCb] Request node addr action: %s", 
+        GetDevManageServerStatusNodeAddrActionStr(request->request.node_addr_action));
+    RCLCPP_INFO(this->get_logger(), "[DevManageServer::_devManageSrvCb] Request server action: %s", 
+        GetDevManageServerStatusServerActionStr(request->request.server_action));
+
+    if (request->request.node_addr_action > 0)
+        RCLCPP_INFO(this->get_logger(), "[DevManageServer::_devManageSrvCb] Request node address: %s", 
+            GetNodeAddrStr(request->request.node_addr).c_str());
+
     response->response = ServiceResponseStatus::SRV_RES_SUCCESS;
     // Node address action
     if (request->request.node_addr_action == msg::DevManageServerStatus::NODE_ADDR_ACTION_ADD)
@@ -254,6 +263,7 @@ void DevManageServer::_devManageSrvCb(const std::shared_ptr<srv::DevManageServer
 
         for (const auto& k : removeKeyVec)
         {
+            RCLCPP_WARN(this->get_logger(), "[DevManageServer::_devManageSrvCb] Remove: %s", k.c_str());
             auto jsonFilePath = this->_nodeNameToJSONFilePath(k);
             if (fs::exists(jsonFilePath))
                 fs::remove(jsonFilePath);

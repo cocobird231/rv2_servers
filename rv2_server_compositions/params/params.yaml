@@ -5,11 +5,16 @@
         namespace: ""
         nodeName: ""                    # rv2_sensors only
         id: ""                          # rv2_sensors only
+
         devManageService: "devmanage_0" # Service name
         devInterface: ""                # rv2_sensors only
+        procStatusRegPeriod_ms: 0.0     # Procedure status registration period
+
         qosService: "qos_0"             # Service name
         qosDirPath: ""                  # rv2_sensors only
+
         safetyService: ""               # Service name
+
         timesyncService: ""             # Service name
         timesyncPeriod_ms: 0.0          # rv2_sensors only
         timesyncAccuracy_ms: 0.0        # rv2_sensors only
